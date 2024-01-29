@@ -17,7 +17,7 @@ tq_index("SP500")
 sp500_symbols <- (tq_index("SP500"))$symbol
 
 ### practice getting the stock price for a single stock in the S&P500
-stock_1 <- tq_get(sp500_symbols[1], get = "stock.prices", from = "2018-01-01", to = "2020-11-01")
+stock_1 <- tq_get(sp500_symbols[1], get = "stock.prices", from = Sys.Date() - 365*2, to = Sys.Date())
 
 ### glimpse of the stock data
 stock_1 %>% glimpse()
@@ -26,17 +26,28 @@ stock_1 %>% summary()
 
 ### loop over all get all s&p500 stocks, only keep the closing price
 
-get_close_price <- function(my_symbol, from_date, to_date)
-{
-  tq_get(my_symbol, get = "stock.prices", from = from_date, to = to_date) %>% 
-    dplyr::select(symbol, date, close)
+get_close_price <- function(my_symbol, from_date, to_date) {
+  # Attempt to get the data and handle errors
+  result <- try({
+    tq_get(my_symbol, get = "stock.prices", from = from_date, to = to_date) %>%
+      dplyr::select(symbol, date, close)
+  }, silent = TRUE)
+  
+  # Check if the result is an error using inherits
+  if (inherits(result, "try-error")) {
+    warning(paste("Failed to get data for symbol:", my_symbol))
+    return(data.frame())  # Return an empty data frame for this symbol
+  } else {
+    return(result)
+  }
 }
 
-### remove the stock with the "."
+
+### remove the stock with the "." or "-" or "GD"
 sp500_symbols_b <- tibble::tibble(
   ssmbol = sp500_symbols
 ) %>% 
-  filter(!stringr::str_detect(ssmbol, "\\.")) %>% 
+  filter(!stringr::str_detect(ssmbol, "\\.|-")) %>% 
   pull(ssmbol)
 
 sp500_symbols %>% length()
@@ -46,8 +57,8 @@ sp500_symbols_b %>% length()
 ### get all closing prices from Jan 01, 2018
 all_close <- purrr::map_dfr(sp500_symbols_b, 
                             get_close_price,
-                            from_date = "2019-01-01",
-                            to_date = "2021-11-01")
+                            from_date = Sys.Date() - 365*2,
+                            to_date = Sys.Date())
 
 all_close %>% count(symbol) %>% 
   count(n)
@@ -88,7 +99,7 @@ keep_close_b %>% tail()
 
 ### convert to wide format
 keep_close_c <- keep_close_b %>% 
-  mutate(day_number = sprintf("day_%03d", date_id)) %>% 
+  mutate(day_number = sprintf("day_%04d", date_id)) %>% 
   dplyr::select(symbol, close, date, day_number)
 
 keep_wf <- keep_close_c %>% 
@@ -97,9 +108,9 @@ keep_wf <- keep_close_c %>%
 
 ### save the long and wide format data sets
 ### uncomment the code below to save the data as CSVs
-# keep_close_c %>%
-#   readr::write_csv("sp500_stock_close_long_format.csv", col_names = TRUE)
-# 
-# keep_wf %>%
-#   readr::write_csv("sp500_stock_close_wide_format.csv", col_names = TRUE)
+keep_close_c %>%
+  readr::write_csv("sp500_stock_close_long_format.csv", col_names = TRUE)
+
+keep_wf %>%
+  readr::write_csv("sp500_stock_close_wide_format.csv", col_names = TRUE)
 

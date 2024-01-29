@@ -13,7 +13,7 @@ library(tidyverse)
 ### to get all of the data, uncomment the code below and set the file name
 ### to the appropriate location in your directory (the path below is specific 
 ### to my directory path)
-stocks_lf <- readr::read_csv("clustering/sp500_stock_close_long_format.csv", col_names = TRUE)
+stocks_lf <- readr::read_csv("sp500_stock_close_long_format.csv", col_names = TRUE)
 
 ### which stocks have missing values
 stocks_lf %>% 
